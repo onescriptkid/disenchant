@@ -1,0 +1,5 @@
+*.go eol=lf
+.gitattributes eol=lf
+
+# Don't touch this
+*.exe binary

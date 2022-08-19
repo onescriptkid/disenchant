@@ -42,7 +42,12 @@ func main() {
 	}
 
 	// List all champion shards convertable to blue essence
-	listChampionShards()
+	champions, err := ListChampionShards(client, port, token)
+	if err != nil {
+		utils.ErrorFatal(err)
+	}
+	fmt.Println("Champions")
+	fmt.Println(champions)
 
 	// Prompt player before disenchanting all of their champion shards - Are you sure?
 	// areYouSure()
@@ -57,27 +62,27 @@ func main() {
 func getPortAndToken() ( port string, token string, err error ) {
 	utils.Header("Searching for lockfile ...")
 	
-	// Instantiate lockfile variables
-	lockfile := "lockfile"
-	lolDir :=  "C:\\Riot Games\\League of Legends"
-	pbeDir := "C:\\Riot Games\\League of Legends (PBE)"
-	sameDir := "."
-	lockfilePath := ""
-	dirs := []string{ lolDir, pbeDir, sameDir }
+	// Retrieve standard set of lockfile paths
+	paths, pathErr := utils.GetLockFilePaths()
+	if err != nil {
+		err = pathErr
+		return
+	}
+	var lockfilePath string
 	foundLockfile := false
 
 	// Search multiple dirs until lockfile is found for the lockfile from the Riot LoL directory on the host machine
-	for _, dir := range dirs {
+	for _, path := range paths {
 
 		// Convert to absolute dir to surface dir to end user
-		abs, absErr := filepath.Abs(dir)
+		abs, absErr := filepath.Abs(path)
 		if absErr != nil {
 			err = absErr
 			return
 		}
 
 		// If lockfile found, exit loop. Otherwise, keep searching.
-		lockfilePath = fmt.Sprintf("%s\\%s", abs, lockfile)
+		lockfilePath = abs
 		_, err = os.Stat(lockfilePath);
 		if err == nil {
 			msg := fmt.Sprintf("  Found %s. Parsing lockfile ...", lockfilePath)
@@ -127,13 +132,20 @@ func getPortAndToken() ( port string, token string, err error ) {
 // Build http client to interact with Riot Lol client api
 func BuildHttpClient(port string, token string)(client http.Client, err error) {
 	utils.Header("Building http client ...")
-	host := fmt.Sprintf("https://127.0.0.1:%s", port)
-	auth := fmt.Sprintf("Basic %s", token)
-	url := fmt.Sprintf("%s/lol-loot/v1/player-loot", host)
 
 	// Instantiate http client
 	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
 	client = http.Client{Timeout: time.Duration(1) * time.Second, Transport: tr}
+
+	return
+}
+
+// List all champion shards convertable to blue essence
+func ListChampionShards(client http.Client, port string, token string)(champions []RiotLoot, err error) {
+	utils.Header("Searching for champions to disenchant ...")
+	host := fmt.Sprintf("https://127.0.0.1:%s", port)
+	auth := fmt.Sprintf("Basic %s", token)
+	url := fmt.Sprintf("%s/lol-loot/v1/player-loot", host)
 
 	// Instantiate http get request
 	req, httperr := http.NewRequest("GET", url, nil)
@@ -147,7 +159,6 @@ func BuildHttpClient(port string, token string)(client http.Client, err error) {
 	req.Header.Set("Authorization", auth)
 
 	// Execute RiotLoot get request
-	utils.Header("Searching for champions to disenchant ...")
 	res, geterr := client.Do(req)
 	if geterr != nil {
 		err = geterr
@@ -161,25 +172,19 @@ func BuildHttpClient(port string, token string)(client http.Client, err error) {
 		return
 	}
 
-	// Unmarshall RiotLoot get request into json
+	// Unmarshal RiotLoot get request into json
 	var riotLoot []RiotLoot
 	json.NewDecoder(res.Body).Decode(&riotLoot)
-	// fmt.Println("Decoded Json")
-	// fmt.Println(riotLoot)
 
-	// Iterate over all RiotLoot and only select champions that are owned
+	// Iterate over all RiotLoot and only select champion shards that are owned for disenchanting
 	for _, loot := range riotLoot {
 		if loot.DisenchantLootName == "CURRENCY_champion" && loot.ItemStatus == "OWNED" {
 			fmt.Printf("  Found %4v %s \n", loot.Count, loot.ItemDesc,)
+			champions = append(champions, loot)
 		}
 	}
 
 	return
-}
-
-// List all champion shards convertable to blue essence
-func listChampionShards(client http.Client, port string, token string)(err error) {
-	utils.Header("Searching for champions to disenchant ...")
 }
 
 // Prompt player before disenchanting all of their champion shards - Are you sure?
