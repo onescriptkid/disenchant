@@ -1,7 +1,7 @@
 ![Tons of essence](./assets/blueessence.png)
 
 # disenchant
-Disenchant all champion shards with 1 click
+Disenchant all **owned** *champions* and *champion shards* with 1 click
 
 ![Disenchant Champion shards](./assets/disenchant.png)
 
@@ -9,7 +9,7 @@ Disenchant all champion shards with 1 click
 ## 🚀 Quickstart
 
 - **Open** the LoL client
-- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/0.0.1/disenchant)
+- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/v0.0.2/disenchant.exe)
 - **Doubleclick** the exectuable - `disenchant.exe`
 
 ## 😢 Notable shortfalls
