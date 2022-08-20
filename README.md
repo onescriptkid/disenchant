@@ -9,7 +9,7 @@ Disenchant all **owned** *champions* and *champion shards* with 1 click
 ## 🚀 Quickstart
 
 - **Open** the LoL client
-- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/v0.0.2/disenchant.exe)
+- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/v0.0.3/disenchant.exe)
 - **Doubleclick** the exectuable - `disenchant.exe`
 
 ## 😢 Notable shortfalls
@@ -22,7 +22,7 @@ Disenchant all **owned** *champions* and *champion shards* with 1 click
 
 `disenchant.go` queries the riot league client [api](https://riot-api-libraries.readthedocs.io/en/latest/lcu.html) to gather loot and select champion shards to convert to blue essence
 
-### Get Request - list of champion sharts
+### Get Request - list of champion shards
 ```bash
 curl --insecure --basic --user riot:<password> -H "Accept: application/json" -v https://localhost:65023/lo
 l-loot/v1/player-loot
@@ -66,7 +66,7 @@ l-loot/v1/player-loot
 }]
 ```
 
-### Post Request - Disenchant shard
+### Post Request - Disenchant **champion** or **champion shard**
 
 ```bash
 # Champion Rental

@@ -12,6 +12,7 @@ import (
 func OnFinish() {
 	fmt.Print("Press [enter] to continue ...")
 	fmt.Scanln()
+	fmt.Scanln()
 }
 
 // Print error in red and then exit with exit status 1
