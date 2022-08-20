@@ -45,6 +45,12 @@ func Title(msg string) {
 	fmt.Println(boldCyan(msg))
 }
 
+// Print in in bold cyan font
+func BoldCyan(msg string) {
+	boldCyan := color.New(color.Bold, color.FgCyan).SprintFunc()
+	fmt.Println(boldCyan(msg))
+}
+
 // Get LockFile Locations
 func GetLockFilePaths()(paths []string, err error){
 	osname := runtime.GOOS

@@ -13,8 +13,10 @@ import (
 	"time"
 	"crypto/tls"
 	"encoding/json"
-	// "os"
-	// "net/http"
+	"sync"
+	"bytes"
+	"log"
+	// "io"
 )
 
 type RiotLoot struct {
@@ -23,6 +25,7 @@ type RiotLoot struct {
 	ItemDesc string `json:"itemDesc"`
 	LootName string `json:"lootName"`
 	Count int `json:"count"`
+	Type string `json:"type"`
 }
 
 func main() {
@@ -46,14 +49,14 @@ func main() {
 	if err != nil {
 		utils.ErrorFatal(err)
 	}
-	fmt.Println("Champions")
-	fmt.Println(champions)
-
 	// Prompt player before disenchanting all of their champion shards - Are you sure?
-	// areYouSure()
+	AreYouSure()
 
 	// Disenchant champion shards
-	// disenchantChampionShards() 
+	err = DisenchantChampionShards(client, port, token, champions) 
+	if err != nil {
+		utils.ErrorFatal(err)
+	}
 
 	utils.Green("\nDisenchanting champions succeeded!")
 }
@@ -135,7 +138,7 @@ func BuildHttpClient(port string, token string)(client http.Client, err error) {
 
 	// Instantiate http client
 	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
-	client = http.Client{Timeout: time.Duration(1) * time.Second, Transport: tr}
+	client = http.Client{Timeout: time.Duration(10) * time.Second, Transport: tr}
 
 	return
 }
@@ -172,6 +175,13 @@ func ListChampionShards(client http.Client, port string, token string)(champions
 		return
 	}
 
+	// Uncomment to print all of riot loot
+	// b, err := io.ReadAll(res.Body)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Println(string(b))
+
 	// Unmarshal RiotLoot get request into json
 	var riotLoot []RiotLoot
 	json.NewDecoder(res.Body).Decode(&riotLoot)
@@ -188,8 +198,85 @@ func ListChampionShards(client http.Client, port string, token string)(champions
 }
 
 // Prompt player before disenchanting all of their champion shards - Are you sure?
-// func areYouSure() {}
+func AreYouSure() {
+	var input string
+
+	for input != "y" && input != "Y" {
+		utils.Title("Are you sure? Press [y] to continue or [n] to quit...\n")
+		fmt.Scan(&input)
+
+		// Quit if n or N
+		if(input == "n" || input == "N") {
+			no := errors.New("Quitting ...")
+			utils.ErrorFatal(no)
+		}
+	}
+
+}
 
 // Disenchant all champion shards found on the account 
-// func disenchantChampionShards() {}
+func DisenchantChampionShards(client http.Client, port string, token string, champions []RiotLoot)( err error) {
+	utils.Header("Disenchanting champions ...")
+	host := fmt.Sprintf("https://127.0.0.1:%s", port)
+	auth := fmt.Sprintf("Basic %s", token)
+
+	// For each champion, create a thread
+	wg := sync.WaitGroup{}
+	for _, champion := range champions {
+		wg.Add(1)
+		go func(client http.Client, port string, token string, champion RiotLoot) {
+			fmt.Printf("  Disenchanting %v %s\n", champion.Count, champion.ItemDesc)
+			url := fmt.Sprintf("%s/lol-loot/v1/recipes/%s_disenchant/craft?repeat=%v", host, champion.Type, champion.Count)
+
+			// Build post json body
+			var jsonStr = []byte(fmt.Sprintf(`["%s"]`, champion.LootName))
+			jsonBytes := bytes.NewBuffer(jsonStr)
+
+			// Instantiate http get request
+			req, httperr := http.NewRequest("POST", url, jsonBytes)
+			if httperr != nil {
+				err = httperr
+				log.Fatalln(err)
+				return
+			}
+
+			// Set headers on RiotLoot get request
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", auth)
+
+			// Execute RiotLoot get request
+			res, geterr := client.Do(req)
+			if geterr != nil {
+				err = geterr
+				log.Fatalln(err)
+				return
+			}
+
+			// Check status code
+			if res.StatusCode != http.StatusOK {
+				msg := fmt.Sprintf("Request to %s failed with status %v %v", url, res.StatusCode, http.StatusText(res.StatusCode))
+				err = errors.New(msg)
+				log.Fatalln(err)
+				return
+			}
+
+			// Print JSON response from disenchant post request
+			// Uncomment to print result of disenchant post request json 
+			// b, err := io.ReadAll(res.Body)
+			// if err != nil {
+			// 	log.Fatalln(err)
+			// }
+			// fmt.Println(string(b))
+			// fmt.Printf("  Url %s\n", url)
+			// fmt.Printf("  Auth %s\n", auth)
+			wg.Done()
+		}(client, port, token, champion)
+	}
+	
+	// Wait for every thread to finish
+	wg.Wait()
+
+	return
+
+}
 
