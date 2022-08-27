@@ -1,34 +1,37 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-	"fmt"
+	"bytes"
+	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/onescriptkid/disenchant/utils"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
-	"encoding/base64"
-	"net/http"
-	"time"
-	"crypto/tls"
-	"encoding/json"
 	"sync"
-	"bytes"
-	"log"
-	// "io"
+	"time"
 )
 
 type RiotLoot struct {
 	DisenchantLootName string `json:"disenchantLootName"`
-	ItemStatus string `json:"itemStatus"`
-	ItemDesc string `json:"itemDesc"`
-	LootName string `json:"lootName"`
-	Count int `json:"count"`
-	Type string `json:"type"`
+	ItemStatus         string `json:"itemStatus"`
+	ItemDesc           string `json:"itemDesc"`
+	LootName           string `json:"lootName"`
+	Count              int    `json:"count"`
+	Type               string `json:"type"`
 }
 
 func main() {
+	// Fix colorred terminal output specific to windows cmd prompt
+	utils.FixWindowsColors()
+
+	// Show Title and set trap to always prompt user before quiting. Prevents app from immediately closing on finish.
 	utils.Title("Disenchanting blue essence ...")
 	defer utils.OnFinish()
 
@@ -37,7 +40,7 @@ func main() {
 	if err != nil {
 		utils.ErrorFatal(err)
 	}
-	
+
 	// Build http client to interact with Riot Lol client api
 	client, err := BuildHttpClient(port, token)
 	if err != nil {
@@ -53,7 +56,7 @@ func main() {
 	AreYouSure()
 
 	// Disenchant champion shards
-	err = DisenchantChampionShards(client, port, token, champions) 
+	err = DisenchantChampionShards(client, port, token, champions)
 	if err != nil {
 		utils.ErrorFatal(err)
 	}
@@ -62,9 +65,9 @@ func main() {
 }
 
 // Get Port and Token from LoL Riot lockfile
-func getPortAndToken() ( port string, token string, err error ) {
+func getPortAndToken() (port string, token string, err error) {
 	utils.Header("Searching for lockfile ...")
-	
+
 	// Retrieve standard set of lockfile paths
 	paths, pathErr := utils.GetLockFilePaths()
 	if err != nil {
@@ -86,14 +89,14 @@ func getPortAndToken() ( port string, token string, err error ) {
 
 		// If lockfile found, exit loop. Otherwise, keep searching.
 		lockfilePath = abs
-		_, err = os.Stat(lockfilePath);
+		_, err = os.Stat(lockfilePath)
 		if err == nil {
 			msg := fmt.Sprintf("  Found %s. Parsing lockfile ...", lockfilePath)
 			foundLockfile = true
 			fmt.Println(msg)
 			break
 		} else if errors.Is(err, os.ErrNotExist) {
-			msg := fmt.Sprintf("  Missing %s. Seaching other locations for lockfile", lockfilePath)
+			msg := fmt.Sprintf("  Missing %s. Seaching other locations for lockfile ...", lockfilePath)
 			utils.Warn(msg)
 		} else {
 			return
@@ -133,18 +136,18 @@ func getPortAndToken() ( port string, token string, err error ) {
 }
 
 // Build http client to interact with Riot Lol client api
-func BuildHttpClient(port string, token string)(client http.Client, err error) {
+func BuildHttpClient(port string, token string) (client http.Client, err error) {
 	utils.Header("Building http client ...")
 
 	// Instantiate http client
-	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client = http.Client{Timeout: time.Duration(10) * time.Second, Transport: tr}
 
 	return
 }
 
 // List all champion shards convertable to blue essence
-func ListChampionShards(client http.Client, port string, token string)(champions []RiotLoot, err error) {
+func ListChampionShards(client http.Client, port string, token string) (champions []RiotLoot, err error) {
 	utils.Header("Searching for champions to disenchant ...")
 	host := fmt.Sprintf("https://127.0.0.1:%s", port)
 	auth := fmt.Sprintf("Basic %s", token)
@@ -187,12 +190,15 @@ func ListChampionShards(client http.Client, port string, token string)(champions
 	json.NewDecoder(res.Body).Decode(&riotLoot)
 
 	// Iterate over all RiotLoot and only select champion shards that are owned for disenchanting
+	total := 0
 	for _, loot := range riotLoot {
 		if loot.DisenchantLootName == "CURRENCY_champion" && loot.ItemStatus == "OWNED" {
-			fmt.Printf("  Found %4v %s \n", loot.Count, loot.ItemDesc,)
+			fmt.Printf("  Found %4v %s \n", loot.Count, loot.ItemDesc)
 			champions = append(champions, loot)
+			total += loot.Count
 		}
 	}
+	fmt.Printf("Total %v champions to disenchant ... \n", total)
 
 	return
 }
@@ -202,11 +208,11 @@ func AreYouSure() {
 	var input string
 
 	for input != "y" && input != "Y" {
-		utils.Title("Are you sure? Press [y] to continue or [n] to quit...\n")
-		fmt.Scan(&input)
+		utils.Title("Are you sure? Press [y] to continue or [n] to quit\n")
+		fmt.Scanln(&input)
 
 		// Quit if n or N
-		if(input == "n" || input == "N") {
+		if input == "n" || input == "N" {
 			no := errors.New("Quitting ...")
 			utils.ErrorFatal(no)
 		}
@@ -214,8 +220,8 @@ func AreYouSure() {
 
 }
 
-// Disenchant all champion shards found on the account 
-func DisenchantChampionShards(client http.Client, port string, token string, champions []RiotLoot)( err error) {
+// Disenchant all champion shards found on the account
+func DisenchantChampionShards(client http.Client, port string, token string, champions []RiotLoot) (err error) {
 	utils.Header("Disenchanting champions ...")
 	host := fmt.Sprintf("https://127.0.0.1:%s", port)
 	auth := fmt.Sprintf("Basic %s", token)
@@ -260,8 +266,7 @@ func DisenchantChampionShards(client http.Client, port string, token string, cha
 				return
 			}
 
-			// Print JSON response from disenchant post request
-			// Uncomment to print result of disenchant post request json 
+			// Uncomment to print JSON response for disenchant POST request
 			// b, err := io.ReadAll(res.Body)
 			// if err != nil {
 			// 	log.Fatalln(err)
@@ -269,14 +274,14 @@ func DisenchantChampionShards(client http.Client, port string, token string, cha
 			// fmt.Println(string(b))
 			// fmt.Printf("  Url %s\n", url)
 			// fmt.Printf("  Auth %s\n", auth)
+
 			wg.Done()
 		}(client, port, token, champion)
 	}
-	
+
 	// Wait for every thread to finish
 	wg.Wait()
 
 	return
 
 }
-

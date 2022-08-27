@@ -1,28 +1,32 @@
-![Tons of essence](./assets/blueessence.png)
 
-# disenchant
+
+# disenchant ![go19](https://img.shields.io/badge/go-1.19-blue) ![LoL client](https://img.shields.io/badge/LeagueClient-12.16.462.9630-gold) ![LoL Game](https://img.shields.io/badge/LeagueGame-12.16.4624391-purple)
 Disenchant all **owned** *champions* and *champion shards* with 1 click
 
-![Disenchant Champion shards](./assets/disenchant.png)
-
+<d> | <d>
+:-------------------------:|:-------------------------:
+![Disenchant Champion shards](./assets/disenchant.png) | ![Tons of essence](./assets/blueessence.png)
 
 ## 🚀 Quickstart
 
 - **Open** the LoL client
-- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/v0.0.3/disenchant.exe)
+- **Download** [disenchant.exe](https://github.com/onescriptkid/disenchant/releases/download/v0.0.4/disenchant.exe)
 - **Doubleclick** the exectuable - `disenchant.exe`
 
 ## 😢 Notable shortfalls
 
-- #️⃣ only works with windows
-- ~~🐧not compatible with linux~~
-- ~~🍎 not compatiable with OSX~~
+- #️⃣ only built for windows
+- ~~🐧not yet compatible on linux~~
+- ~~🍎 not yet compatiable on OSX~~
 
 ## Riot League Client API
 
-`disenchant.go` queries the riot league client [api](https://riot-api-libraries.readthedocs.io/en/latest/lcu.html) to gather loot and select champion shards to convert to blue essence
+`disenchant.go` queries the riot league client [api](https://riot-api-libraries.readthedocs.io/en/latest/lcu.html) for loot and selects champion shards to convert to blue essence
 
 ### Get Request - list of champion shards
+
+> Replace `<password>` with the *4th* value from the `lockfile - "C:\\Riot Games\\League of Legends\\lockfile"` : `LeagueClient:13340:56695:yQ*****Ekw:https`
+
 ```bash
 curl --insecure --basic --user riot:<password> -H "Accept: application/json" -v https://localhost:65023/lo
 l-loot/v1/player-loot
